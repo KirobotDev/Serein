@@ -79,6 +79,13 @@ const SIGN_IN_HEADER_HEIGHT: f32 = if cfg!(target_os = "windows") {
 fn main() -> eframe::Result {
 	#[cfg(all(debug_assertions, feature = "demo"))]
 	if std::env::args().any(|arg| arg == "--demo")
+		&& std::env::args().any(|arg| arg == "--demo-check-window-geometry")
+	{
+		app_settings::debug_window_geometry_check();
+		return Ok(());
+	}
+	#[cfg(all(debug_assertions, feature = "demo"))]
+	if std::env::args().any(|arg| arg == "--demo")
 		&& std::env::args().any(|arg| arg == "--demo-check-audio")
 	{
 		audio::debug_voice_message_check();
@@ -331,8 +338,9 @@ fn main() -> eframe::Result {
 		return Ok(());
 	}
 	// Native GPU/window capabilities are selected before the first window exists.
-	let (gpu_preference, transparency_available, hide_window_decorations) = if demo {
-		(model::GpuPreference::default(), false, false)
+	let (gpu_preference, transparency_available, hide_window_decorations, window_geometry) = if demo
+	{
+		(model::GpuPreference::default(), false, false, None)
 	} else {
 		local_store::LocalStore::open_default()
 			.and_then(|store| store.app_preferences())
@@ -341,6 +349,7 @@ fn main() -> eframe::Result {
 					preferences.gpu_preference,
 					preferences.transparency_blur,
 					preferences.hide_window_decorations,
+					preferences.window_geometry,
 				)
 			})
 			.unwrap_or_default()
@@ -356,7 +365,9 @@ fn main() -> eframe::Result {
 		viewport: {
 			let builder = egui::ViewportBuilder::default()
 				.with_transparent(transparency_available)
-				.with_inner_size([1120.0, 760.0])
+				.with_inner_size(window_geometry.map_or([1120.0, 760.0], |geometry| {
+					geometry.size.map(|value| value as f32)
+				}))
 				.with_min_inner_size([760.0, 520.0])
 				.with_active(!start_minimized)
 				.with_app_id("cz.viceverse.serein");
@@ -430,6 +441,25 @@ fn main() -> eframe::Result {
 		options,
 		Box::new(move |cc| {
 			let desktop = Desktop::new(cc, demo, frame_sample, transparency_available)?;
+			if let Some(position) = window_geometry.and_then(|geometry| geometry.position) {
+				// Ignore coordinates from disconnected monitors. Wayland cannot set a position.
+				if desktop.window.available_monitors().any(|monitor| {
+					let origin = monitor.position();
+					let size = monitor.size();
+					i64::from(position[0]) >= i64::from(origin.x)
+						&& i64::from(position[1]) >= i64::from(origin.y)
+						&& i64::from(position[0]) + 64 < i64::from(origin.x) + i64::from(size.width)
+						&& i64::from(position[1]) + 64
+							< i64::from(origin.y) + i64::from(size.height)
+				}) {
+					desktop
+						.window
+						.set_outer_position(winit::dpi::PhysicalPosition::new(
+							position[0],
+							position[1],
+						));
+				}
+			}
 			if start_minimized {
 				cc.egui_ctx
 					.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
@@ -5734,6 +5764,34 @@ impl eframe::App for Desktop {
 		false
 	}
 	fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+		// Read native size independently of viewport rectangles: Wayland has no global position,
+		// so egui-winit cannot supply either rectangle there. Native scale excludes egui zoom.
+		if !self.fixture_only
+			&& !self.state.demo
+			&& self.app_settings.loaded
+			&& let Some(viewport) = raw_input.viewports.get(&raw_input.viewport_id)
+			&& viewport.minimized != Some(true)
+			&& viewport.maximized != Some(true)
+			&& viewport.fullscreen != Some(true)
+			&& self.window.is_visible() != Some(false)
+		{
+			let size = self
+				.window
+				.inner_size()
+				.to_logical::<u32>(self.window.scale_factor());
+			let geometry = local_store::WindowGeometry {
+				size: [size.width, size.height],
+				position: self
+					.window
+					.outer_position()
+					.ok()
+					.map(|position| [position.x, position.y]),
+			};
+			if geometry.is_valid() && self.app_settings.current.window_geometry != Some(geometry) {
+				self.app_settings.current.window_geometry = Some(geometry);
+				self.app_settings.state.dirty = true;
+			}
+		}
 		// Viewport position/scale comes from native events; avoid an OS monitor query on paints.
 		if let Some(viewport) = raw_input.viewports.get(&raw_input.viewport_id) {
 			let geometry = (viewport.outer_rect, viewport.native_pixels_per_point);

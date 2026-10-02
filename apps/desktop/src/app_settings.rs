@@ -27,6 +27,7 @@ impl Settings {
 	}
 	pub fn observe(&mut self, ui: &ui::MessagingUi) {
 		let value = AppPreferences {
+			window_geometry: self.current.window_geometry,
 			language: ui.language.preference().map(str::to_owned),
 			notifications_enabled: ui.notifications_enabled,
 			auto_update: ui.updates.auto_update,
@@ -95,6 +96,64 @@ impl Settings {
 		ui.set_voice_user_volume_overrides(&value.user_volumes);
 		ui.set_voice_user_mutes(&value.muted_users);
 	}
+}
+
+#[cfg(all(debug_assertions, feature = "demo"))]
+pub fn debug_window_geometry_check() {
+	use local_store::{LocalStore, WindowGeometry};
+	let path = std::env::temp_dir().join(format!(
+		"serein-window-geometry-{}.sqlite3",
+		std::process::id()
+	));
+	assert!(!path.exists());
+	let store = LocalStore::open(&path).unwrap();
+	assert!(store.app_preferences().unwrap().window_geometry.is_none());
+	for position in [None, Some([-1920, 80])] {
+		let size = winit::dpi::PhysicalSize::new(1800, 1200).to_logical::<u32>(1.5);
+		let geometry = WindowGeometry {
+			size: [size.width, size.height],
+			position,
+		};
+		let mut settings = Settings::default();
+		settings.current.window_geometry = Some(geometry);
+		let mut ui = ui::MessagingUi::default();
+		settings.apply(&mut ui);
+		ui.notifications_enabled = false;
+		settings.observe(&ui);
+		assert_eq!(settings.current.window_geometry, Some(geometry));
+		store.save_app_preferences(&settings.current).unwrap();
+		let reopened = LocalStore::open(&path).unwrap();
+		assert_eq!(
+			reopened.app_preferences().unwrap().window_geometry,
+			Some(geometry)
+		);
+		for invalid in [
+			WindowGeometry {
+				size: [0, 800],
+				position,
+			},
+			WindowGeometry {
+				size: [16385, 800],
+				position,
+			},
+			WindowGeometry {
+				size: [1200, 800],
+				position: Some([i32::MAX, 0]),
+			},
+		] {
+			settings.current.window_geometry = Some(invalid);
+			assert!(store.save_app_preferences(&settings.current).is_err());
+		}
+		assert_eq!(
+			reopened.app_preferences().unwrap().window_geometry,
+			Some(geometry)
+		);
+	}
+	drop(store);
+	std::fs::remove_file(path).unwrap();
+	println!(
+		"Offline window geometry check passed: size without position, X11 coordinates, native scale, preference preservation, SQLite reopen and bounds."
+	);
 }
 
 #[cfg(test)]
