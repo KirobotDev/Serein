@@ -8106,49 +8106,53 @@ pub fn debug_member_voice_status_check(mut state: State, mut private: State) {
 		activities: vec![],
 		clients: Default::default(),
 	});
-	for surface in ["friends", "profile", "dm-list", "dm-header"] {
-		for frame in 0..2 {
-			let output = ctx.run_ui(
-				egui::RawInput {
-					screen_rect: Some(egui::Rect::from_min_size(
-						egui::Pos2::ZERO,
-						egui::vec2(800.0, 700.0),
-					)),
-					..Default::default()
-				},
-				|ui| match surface {
-					"friends" => view.friends_page(ui, &mut private, &mut vec![]),
-					"profile" => {
-						profiles::show(
-							ui,
-							&user,
-							None,
-							&private,
-							&mut view.avatars,
-							&mut None,
-							&mut markdown::FormatCache::default(),
-							true,
-							egui::pos2(50.0, 50.0),
-						);
-					}
-					"dm-list" => {
-						view.channel_list(ui, &mut private);
-					}
-					_ => {
-						view.channel_header_row(ui, &mut private, false, false, false, &mut vec![])
-					}
-				},
-			);
-			let found = output.shapes.iter().any(|shape| {
-				matches!(&shape.shape,
+	let check_cards = |view: &mut MessagingUi, state: &mut State, header: bool| {
+		for surface in ["friends", "profile", "dm-list", "dm-header"]
+			.into_iter()
+			.filter(|surface| header || *surface != "dm-header")
+		{
+			for frame in 0..2 {
+				let output = ctx.run_ui(
+					egui::RawInput {
+						screen_rect: Some(egui::Rect::from_min_size(
+							egui::Pos2::ZERO,
+							egui::vec2(800.0, 700.0),
+						)),
+						..Default::default()
+					},
+					|ui| match surface {
+						"friends" => view.friends_page(ui, state, &mut vec![]),
+						"profile" => {
+							profiles::show(
+								ui,
+								&user,
+								None,
+								state,
+								&mut view.avatars,
+								&mut None,
+								&mut markdown::FormatCache::default(),
+								true,
+								egui::pos2(50.0, 50.0),
+							);
+						}
+						"dm-list" => {
+							view.channel_list(ui, state);
+						}
+						_ => view.channel_header_row(ui, state, false, false, false, &mut vec![]),
+					},
+				);
+				let found = output.shapes.iter().any(|shape| {
+					matches!(&shape.shape,
 				egui::Shape::Text(text) if text.galley.text() == "In voice")
-			});
-			output.drop_without_applying_deltas();
-			if frame == 1 {
-				assert!(found, "shared-server voice badge missing from {surface}");
+				});
+				output.drop_without_applying_deltas();
+				if frame == 1 {
+					assert!(found, "shared-server voice badge missing from {surface}");
+				}
 			}
 		}
-	}
+	};
+	check_cards(&mut view, &mut private, true);
 	private.gateway_connected = false;
 	assert!(!profiles::voice_users(&private).contains(&user.id));
 	private.gateway_connected = true;
@@ -8190,6 +8194,10 @@ pub fn debug_member_voice_status_check(mut state: State, mut private: State) {
 				.any(|text| text == "In voice")
 		);
 	}
+	private.selected = Some(entry.channel);
+	assert!(profiles::voice_users(&private).contains(&user.id));
+	check_cards(&mut view, &mut private, false);
+	private.selected = Some(channel);
 	private.demo = false;
 	private.apply_voice(client_core::voice::Event::Call {
 		channel,

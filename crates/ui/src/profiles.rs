@@ -25,14 +25,10 @@ pub(crate) fn voice_users(state: &State) -> std::collections::BTreeSet<Id> {
 		})
 		.map(|entry| entry.participant.user)
 		.collect();
-	if let Some(channel) = state.selected.filter(|channel| state.can_view(*channel)) {
-		users.extend(
-			state
-				.voice
-				.dm_participants(channel)
-				.iter()
-				.map(|participant| participant.user),
-		);
+	for (channel, participants) in state.voice.dm_call_participants() {
+		if state.can_view(channel) {
+			users.extend(participants.iter().map(|participant| participant.user));
+		}
 	}
 	if let Some(call) = &state.voice.active
 		&& call.guild.is_none()

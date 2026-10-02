@@ -144,6 +144,12 @@ pub struct State {
 	sequence: u64,
 }
 impl State {
+	/// Bounded, retained private-call membership across conversations.
+	pub fn dm_call_participants(&self) -> impl Iterator<Item = (Id, &[Participant])> {
+		self.dm_participants
+			.iter()
+			.map(|(channel, participants)| (*channel, participants.as_slice()))
+	}
 	/// Known private-call membership, including calls this device has not joined.
 	pub fn dm_participants(&self, channel: Id) -> &[Participant] {
 		self.dm_participants
