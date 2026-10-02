@@ -4443,3 +4443,5 @@ server-stickers-empty-detail = Загрузите изображение, что
 screen-macos-system-picker = Выбрать через системное окно macOS
 
 screen-macos-system-picker-kind = Системный выбор содержимого
+
+member-in-voice = В голосовом чате

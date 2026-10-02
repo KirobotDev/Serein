@@ -4439,3 +4439,5 @@ server-stickers-empty-detail = Envie uma imagem para adicionar sua primeira figu
 screen-macos-system-picker = Escolher com o seletor do macOS
 
 screen-macos-system-picker-kind = Seletor de conteúdo do sistema
+
+member-in-voice = No chat de voz

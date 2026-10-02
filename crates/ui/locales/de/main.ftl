@@ -4439,3 +4439,5 @@ server-stickers-empty-detail = Laden Sie ein Bild hoch, um Ihren ersten Sticker 
 screen-macos-system-picker = Mit der macOS-Systemauswahl wählen
 
 screen-macos-system-picker-kind = Systemauswahl für Inhalte
+
+member-in-voice = Im Sprachchat

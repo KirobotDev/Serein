@@ -4500,3 +4500,5 @@ server-stickers-empty-detail = Upload artwork to add your first sticker.
 screen-macos-system-picker = Choose with the macOS system picker
 
 screen-macos-system-picker-kind = System content picker
+
+member-in-voice = In voice

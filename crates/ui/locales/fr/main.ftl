@@ -4439,3 +4439,5 @@ server-stickers-empty-detail = Importez une image pour ajouter votre premier aut
 screen-macos-system-picker = Choisir avec le sélecteur système macOS
 
 screen-macos-system-picker-kind = Sélecteur de contenu système
+
+member-in-voice = En vocal

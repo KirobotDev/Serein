@@ -4428,3 +4428,5 @@ server-stickers-empty-detail = 画像をアップロードして最初のスタ�
 screen-macos-system-picker = macOSのシステム選択画面で選ぶ
 
 screen-macos-system-picker-kind = システムのコンテンツ選択
+
+member-in-voice = ボイスチャット中

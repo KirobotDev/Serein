@@ -4442,3 +4442,5 @@ server-stickers-empty-detail = Prześlij obraz, aby dodać swoją pierwszą nakl
 screen-macos-system-picker = Wybierz w systemowym oknie macOS
 
 screen-macos-system-picker-kind = Systemowy wybór treści
+
+member-in-voice = Na czacie głosowym

@@ -4502,3 +4502,5 @@ server-stickers-empty-detail = Nahrajte obrázek a přidejte svou první nálepk
 screen-macos-system-picker = Vybrat systémovým dialogem macOS
 
 screen-macos-system-picker-kind = Systémový výběr obsahu
+
+member-in-voice = V hlasovém chatu

@@ -4441,3 +4441,5 @@ server-stickers-empty-detail = Suba una imagen para añadir su primer sticker.
 screen-macos-system-picker = Elegir con el selector del sistema macOS
 
 screen-macos-system-picker-kind = Selector de contenido del sistema
+
+member-in-voice = En un canal de voz

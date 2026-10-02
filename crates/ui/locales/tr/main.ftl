@@ -4430,3 +4430,5 @@ server-stickers-empty-detail = İlk çıkartmanızı eklemek için bir görsel y
 screen-macos-system-picker = macOS sistem seçicisiyle seç
 
 screen-macos-system-picker-kind = Sistem içerik seçicisi
+
+member-in-voice = Sesli sohbette
