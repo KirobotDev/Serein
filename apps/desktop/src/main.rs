@@ -441,24 +441,8 @@ fn main() -> eframe::Result {
 		options,
 		Box::new(move |cc| {
 			let desktop = Desktop::new(cc, demo, frame_sample, transparency_available)?;
-			if let Some(position) = window_geometry.and_then(|geometry| geometry.position) {
-				// Ignore coordinates from disconnected monitors. Wayland cannot set a position.
-				if desktop.window.available_monitors().any(|monitor| {
-					let origin = monitor.position();
-					let size = monitor.size();
-					i64::from(position[0]) >= i64::from(origin.x)
-						&& i64::from(position[1]) >= i64::from(origin.y)
-						&& i64::from(position[0]) + 64 < i64::from(origin.x) + i64::from(size.width)
-						&& i64::from(position[1]) + 64
-							< i64::from(origin.y) + i64::from(size.height)
-				}) {
-					desktop
-						.window
-						.set_outer_position(winit::dpi::PhysicalPosition::new(
-							position[0],
-							position[1],
-						));
-				}
+			if let Some(geometry) = window_geometry {
+				app_settings::restore_window_geometry(&desktop.window, geometry);
 			}
 			if start_minimized {
 				cc.egui_ctx

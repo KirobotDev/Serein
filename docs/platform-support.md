@@ -5,6 +5,9 @@
 Normal window size is saved in logical pixels in the existing device-local SQLite
 preferences. Outer position is saved in physical pixels where the window system
 supports it (including Linux X11); disconnected-monitor positions are ignored.
+Restoration fits the complete outer window to the selected monitor's dimensions,
+shrinking it and moving it inward when the display has become smaller. The normal
+minimum size is relaxed if necessary to fit that display.
 Minimized, hidden, maximized and fullscreen states do not replace normal geometry.
 The offline `--demo` ignores saved geometry and does not save its window state.
 
