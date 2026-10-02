@@ -1314,6 +1314,26 @@ impl MessagingUi {
 		let lazy = list.lazy;
 		let start = list.start;
 		let guild = list.guild;
+		let voice_users: std::collections::BTreeSet<Id> = if !state.gateway_connected {
+			Default::default()
+		} else if let Some(guild) = guild {
+			state
+				.voice
+				.roster
+				.iter()
+				.filter(|entry| entry.guild == guild && state.can_view(entry.channel))
+				.map(|entry| entry.participant.user)
+				.collect()
+		} else if state.can_view(channel) {
+			state
+				.voice
+				.dm_participants(channel)
+				.iter()
+				.map(|participant| participant.user)
+				.collect()
+		} else {
+			Default::default()
+		};
 		let guild_or_channel = guild.unwrap_or(channel);
 		let member_key = (state.generation, guild_or_channel, list.request);
 		let reset_scroll = self.member_extent.is_none_or(|(key, _)| key != member_key);
@@ -1409,14 +1429,7 @@ impl MessagingUi {
 							let (status, custom, activities, clients) =
 								profiles::member_presence(state, member, guild);
 							let subtitle = profiles::subtitle(custom, activities);
-							let in_voice = state.gateway_connected
-								&& guild.is_some_and(|guild| {
-									state.voice.roster.iter().any(|entry| {
-										entry.guild == guild
-											&& entry.participant.user == member.user.id
-											&& state.can_view(entry.channel)
-									})
-								});
+							let in_voice = voice_users.contains(&member.user.id);
 							let voice_label = in_voice.then(|| language.text("member-in-voice"));
 							let online =
 								status.is_some_and(|s| matches!(s, "online" | "idle" | "dnd"));
@@ -1429,15 +1442,19 @@ impl MessagingUi {
 									egui::Role::Button,
 									true,
 									format!(
-										"{name}, {}, {}, {}",
+										"{name}, {}{}{}",
 										status.map_or_else(
 											|| crate::i18n::translate(
 												"friends-presence-unavailable"
 											),
 											profiles::presence_label,
 										),
-										subtitle.as_deref().unwrap_or_default(),
-										voice_label.as_deref().unwrap_or_default()
+										subtitle
+											.as_ref()
+											.map_or_else(String::new, |text| format!(", {text}")),
+										voice_label
+											.as_ref()
+											.map_or_else(String::new, |text| format!(", {text}"))
 									),
 								)
 							});
@@ -1537,11 +1554,22 @@ impl MessagingUi {
 													12.0,
 													colors.positive,
 												);
-												ui.label(
-													RichText::new(label)
-														.size(12.0)
-														.color(colors.positive),
-												);
+												let width = if subtitle.is_some() {
+													ui.available_width() * 0.5
+												} else {
+													ui.available_width()
+												};
+												ui.add_sized(
+													[width, 12.0],
+													egui::Label::new(
+														RichText::new(label)
+															.size(12.0)
+															.color(colors.positive),
+													)
+													.truncate()
+													.selectable(false),
+												)
+												.on_hover_text(label);
 												if subtitle.is_some() {
 													ui.label(
 														RichText::new("·")
@@ -7986,9 +8014,9 @@ mod composer_tests {
 	}
 }
 
-/// Offline member-row check using a synthetic guild voice roster; no service or audio access.
+/// Offline guild/private-call member-row check; no service or audio access.
 #[cfg(debug_assertions)]
-pub fn debug_member_voice_status_check(mut state: State) {
+pub fn debug_member_voice_status_check(mut state: State, mut private: State) {
 	let entry = state.voice.roster[0].clone();
 	let mut member = entry.member.clone().unwrap();
 	member.custom_status = Some("Synthetic status".into());
@@ -8006,8 +8034,10 @@ pub fn debug_member_voice_status_check(mut state: State) {
 		groups: vec![],
 		ranges: vec![],
 	});
-	let mut view = MessagingUi::default();
-	view.language = i18n::Language::English;
+	let mut view = MessagingUi {
+		language: i18n::Language::English,
+		..Default::default()
+	};
 	let ctx = egui::Context::default();
 	let render = |view: &mut MessagingUi, state: &mut State| {
 		let output = ctx.run_ui(
@@ -8050,20 +8080,82 @@ pub fn debug_member_voice_status_check(mut state: State) {
 			.any(|text| text == "In voice")
 	);
 	state.voice.roster[0].guild = entry.guild;
-	state.channels.retain(|channel| channel.id != entry.channel);
-	assert!(
-		!render(&mut view, &mut state)
-			.iter()
-			.any(|text| text == "In voice")
-	);
 	state.voice.roster.clear();
 	assert!(
 		!render(&mut view, &mut state)
 			.iter()
 			.any(|text| text == "In voice")
 	);
+	state.voice.roster.push(entry.clone());
+	state.channels.retain(|channel| channel.id != entry.channel);
+	assert!(
+		!render(&mut view, &mut state)
+			.iter()
+			.any(|text| text == "In voice")
+	);
+
+	let channel = private.selected.unwrap();
+	let user = private.channel(channel).unwrap().recipients[0].clone();
+	private.gateway_connected = true;
+	private.members = Some(model::MemberList {
+		guild: None,
+		channel,
+		request: 0,
+		start: 0,
+		slots: vec![Some(model::MemberSlot::Person(model::Member {
+			user: user.clone(),
+			roles: vec![],
+			nick: None,
+			status: Some("online".into()),
+			custom_status: Some("Synthetic status".into()),
+			activities: vec![],
+			clients: Default::default(),
+		}))],
+		total: 1,
+		lazy: false,
+		freshness: Freshness::Fresh,
+		groups: vec![],
+		ranges: vec![],
+	});
+	private.demo = false;
+	private.apply_voice(client_core::voice::Event::Call {
+		channel,
+		ringing: Some(vec![]),
+		unavailable: false,
+		participants: Some(vec![client_core::voice::Participant {
+			user: user.id,
+			muted: false,
+			deafened: false,
+			server_muted: false,
+			server_deafened: false,
+			video: false,
+			streaming: false,
+		}]),
+	});
+	private.demo = true;
+	for _ in 0..2 {
+		assert!(
+			render(&mut view, &mut private)
+				.iter()
+				.any(|text| text == "In voice")
+		);
+	}
+	private.demo = false;
+	private.apply_voice(client_core::voice::Event::Call {
+		channel,
+		ringing: None,
+		participants: Some(vec![]),
+		unavailable: false,
+	});
+	private.demo = true;
+	assert!(
+		!render(&mut view, &mut private)
+			.iter()
+			.any(|text| text == "In voice")
+	);
+
 	println!(
-		"Member voice status debug check passed: visible guild roster, preserved custom status, disconnect and departure. Synthetic egui rendering only."
+		"Member voice status debug check passed: guild roster and private call membership, preserved custom status, disconnect and departure. Synthetic egui rendering only."
 	);
 }
 
