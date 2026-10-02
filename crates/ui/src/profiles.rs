@@ -10,6 +10,62 @@ use client_core::{State, profile::ProfileView};
 use egui::{Color32, CornerRadius, Pos2, Rect, RichText, Stroke, UiBuilder, Vec2, pos2, vec2};
 use model::{Id, User};
 
+/// Voice presence follows the person across views, using only known, visible calls.
+pub(crate) fn voice_users(state: &State) -> std::collections::BTreeSet<Id> {
+	if !state.gateway_connected {
+		return Default::default();
+	}
+	let mut users: std::collections::BTreeSet<_> = state
+		.voice
+		.roster
+		.iter()
+		.filter(|entry| {
+			state.guilds.iter().any(|guild| guild.id == entry.guild)
+				&& state.can_view(entry.channel)
+		})
+		.map(|entry| entry.participant.user)
+		.collect();
+	if let Some(channel) = state.selected.filter(|channel| state.can_view(*channel)) {
+		users.extend(
+			state
+				.voice
+				.dm_participants(channel)
+				.iter()
+				.map(|participant| participant.user),
+		);
+	}
+	if let Some(call) = &state.voice.active
+		&& call.guild.is_none()
+		&& state.can_view(call.channel)
+	{
+		users.extend(call.participants.iter().map(|participant| participant.user));
+	}
+	users
+}
+
+/// Prefix a status row with the shared voice badge, reserving room for its existing text.
+pub(crate) fn voice_badge(ui: &mut egui::Ui, in_voice: bool, has_status: bool) {
+	if !in_voice {
+		return;
+	}
+	let colors = design::palette(ui);
+	let label = crate::i18n::translate("member-in-voice");
+	icons::inline(ui, Icon::Speaker, 12.0, colors.positive);
+	let width = ui.available_width() * if has_status { 0.5 } else { 1.0 };
+	ui.scope(|ui| {
+		ui.set_max_width(width);
+		ui.add(
+			egui::Label::new(RichText::new(&label).size(12.0).color(colors.positive))
+				.truncate()
+				.selectable(false),
+		)
+		.on_hover_text(&label);
+	});
+	if has_status {
+		ui.label(RichText::new("·").size(12.0).color(colors.muted));
+	}
+}
+
 pub(crate) fn server_tag_width(ui: &egui::Ui, tag: Option<&model::ClanTag>) -> f32 {
 	tag.map_or(0.0, |tag| {
 		let text = ui.painter().layout_no_wrap(
@@ -1624,6 +1680,7 @@ pub fn show(
 	} else {
 		presence(state, user.id, guild)
 	};
+	let in_voice = !user.webhook && voice_users(state).contains(&user.id);
 	let dm_channel = state
 		.channels
 		.iter()
@@ -2056,9 +2113,18 @@ pub fn show(
 									}
 								});
 							}
-							if let Some(custom) = custom {
+							if custom.is_some() || in_voice {
 								ui.add_space(4.0);
-								ui.add(egui::Label::new(RichText::new(custom).size(13.0)).wrap());
+								ui.horizontal(|ui| {
+									ui.spacing_mut().item_spacing.x = 4.0;
+									voice_badge(ui, in_voice, custom.is_some());
+									if let Some(custom) = custom {
+										ui.add(
+											egui::Label::new(RichText::new(custom).size(13.0))
+												.wrap(),
+										);
+									}
+								});
 							}
 							if !user.webhook && view.is_none_or(|v| v.loading) {
 								ui.add_space(4.0);
