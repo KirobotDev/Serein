@@ -2166,9 +2166,9 @@ reading-chat-reading-settings-scrolling-speed = Scrolling speed
 # Context: chat_reading_settings
 reading-chat-reading-settings-smooth-scrolling = Smooth scrolling
 # Context: chat_reading_settings
-reading-chat-reading-settings-compact-message-spacing = Compact message spacing
+reading-chat-reading-settings-compact-message-spacing = Compact messages
 # Context: chat_reading_settings
-reading-chat-reading-settings-tighter-gaps-between-message-groups = Tighter gaps between message groups fit more messages on screen.
+reading-chat-reading-settings-tighter-gaps-between-message-groups = Show names beside messages without avatars, with tighter message and divider spacing.
 # Context: chat_reading_settings
 reading-chat-reading-settings-visible-chat-gifs-play-automatically = Visible chat GIFs play automatically.
 # Context: layout_settings

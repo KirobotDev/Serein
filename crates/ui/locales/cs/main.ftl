@@ -2165,9 +2165,9 @@ reading-chat-reading-settings-scrolling-speed = Rychlost rolování
 # Context: chat_reading_settings
 reading-chat-reading-settings-smooth-scrolling = Plynulé rolování
 # Context: chat_reading_settings
-reading-chat-reading-settings-compact-message-spacing = Kompaktní rozestupy zpráv
+reading-chat-reading-settings-compact-message-spacing = Kompaktní zprávy
 # Context: chat_reading_settings
-reading-chat-reading-settings-tighter-gaps-between-message-groups = Menší mezery mezi skupinami zpráv zobrazí na obrazovce více zpráv.
+reading-chat-reading-settings-tighter-gaps-between-message-groups = Jména vedle zpráv bez avatarů, s menšími mezerami mezi zprávami a oddělovači.
 # Context: chat_reading_settings
 reading-chat-reading-settings-visible-chat-gifs-play-automatically = Viditelné GIFy chatu se přehrávají automaticky.
 # Context: layout_settings
