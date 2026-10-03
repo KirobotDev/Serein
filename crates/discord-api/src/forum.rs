@@ -292,23 +292,15 @@ mod tests {
 			let server = tokio::spawn(async move {
 				respond(
 					&listener,
-					&search_route(0),
+					&search_route(25),
 					"200 OK",
 					&body,
-				)
-				.await;
-
-				respond(
-					&listener,
-					"/guilds/1/threads/active",
-					"403 Forbidden",
-					r#"{"code":50013}"#,
 				)
 				.await;
 			});
 
 			assert!(matches!(
-				api.forum_posts(Id(2), Id(1), 0).await,
+				api.forum_posts(Id(2), Id(1), 25).await,
 				Err(Failure::Forbidden)
 			));
 
