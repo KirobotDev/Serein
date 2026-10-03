@@ -39,10 +39,10 @@ def check_shortcut(shortcut, executable):
         target = ctypes.create_unicode_buffer(1024)
         method(link, 3, ctypes.HRESULT, ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint)(
             link, target, len(target), None, 4)
-        assert Path(target.value) == executable, target.value
+        assert Path(target.value).samefile(executable), target.value
         working = ctypes.create_unicode_buffer(1024)
         method(link, 8, ctypes.HRESULT, ctypes.c_void_p, ctypes.c_int)(link, working, len(working))
-        assert Path(working.value) == executable.parent, working.value
+        assert Path(working.value).samefile(executable.parent), working.value
         shell.SHGetPropertyStoreFromParsingName(ctypes.c_wchar_p(str(shortcut)), None, 0,
             ctypes.byref(GUID("886d8eeb-8cf2-4446-8d02-cdba1dbdcf99")), ctypes.byref(store))
         key = GUID("9f4c2855-9f79-4b39-a8d0-e1d42de1d5f3").bytes[:] + list((5).to_bytes(4, "little"))
@@ -108,7 +108,16 @@ def main():
             # NSIS's normal bootstrap detaches a temporary child and returns 0.
             # Run an external copy with _?= to wait for the actual uninstaller.
             shutil.copy2(uninstaller, copied_uninstaller)
-            return subprocess.run(f'"{copied_uninstaller}" /S _?={installed}', timeout=30)
+            result = subprocess.run(f'"{copied_uninstaller}" /S _?={installed}', timeout=30)
+            # Emulation/scanning can briefly retain the exited fixture's image.
+            def remove_copy():
+                try:
+                    copied_uninstaller.unlink()
+                    return True
+                except PermissionError:
+                    return False
+            wait_for(remove_copy)
+            return result
 
         timings = []
         running = None
@@ -138,7 +147,7 @@ def main():
                 with winreg.OpenKey(winreg.HKEY_CURRENT_USER, uninstall_key, 0,
                                     winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as key:
                     assert winreg.QueryValueEx(key, "DisplayVersion")[0] == "0.0.0-offline"
-                    assert winreg.QueryValueEx(key, "InstallLocation")[0] == str(installed)
+                    assert Path(winreg.QueryValueEx(key, "InstallLocation")[0]).samefile(installed)
                 # Exercise removal of files left by an older script-based installer.
                 for name in ("install-notifications.ps1", "setup.ps1"):
                     (installed / name).write_text("legacy fixture")
