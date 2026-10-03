@@ -4095,3 +4095,32 @@ remain unmeasured. No account, microphone, camera or desktop capture was used.
 Synthetic delivery and bounded recovery do not prove resolution of intermittent
 official-client error 2012. Very large keyframes at low feedback bitrates still
 need owner-controlled investigation; no automatic resolution adaptation was added.
+
+## Native Windows installer smoke (October 3, 2026)
+
+Installer source `4be6d629` replaces setup/uninstall PowerShell with native Windows
+process enumeration and shortcut property-store calls. Run
+`python packaging/windows/test_installer.py` in a disposable Windows user with
+pinned Rust 1.98.1 and NSIS. The script compiles an optimized, std-only offline
+fixture; it never runs Serein, connects an account or opens audio devices.
+
+| Synthetic fixture metric | Windows x64 | Windows ARM64 |
+| --- | ---: | ---: |
+| Compressed setup EXE | 870,573 B | 874,551 B |
+| Fresh silent installation | 254.489 ms | 1,159.990 ms |
+| First / second silent upgrade | 208.480 / 250.311 ms | 377.350 / 337.698 ms |
+
+One CI run per architecture, no warmup: elapsed wall time around the setup
+subprocess includes extraction, process checks, shortcut and registry writes.
+These three samples perform different work and are not a latency benchmark or
+before/after speed claim. [x64 evidence](https://github.com/ViceVerse-cz/Serein/actions/runs/37088681680/job/111104156410)
+and [ARM64 evidence](https://github.com/ViceVerse-cz/Serein/actions/runs/37088681680/job/111104156236)
+also verify the running-app guard, Unicode paths, shortcut target/working directory/
+AppUserModelID, legacy-script removal and uninstall cleanup.
+
+Production Windows executable, full voice-inclusive installed package and
+distribution sizes and baseline installation timings remain unmeasured on the
+macOS host. No Rust runtime or voice dependency changed. The standard host
+voice-inclusive package passes; full workspace tests remain blocked by unchanged
+UI failures. Antivirus acceptance and Windows signing are separate, unverified
+release concerns.
