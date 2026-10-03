@@ -297,6 +297,14 @@ mod tests {
 					&body,
 				)
 				.await;
+
+				respond(
+					&listener,
+					"/guilds/1/threads/active",
+					"403 Forbidden",
+					r#"{"code":50013}"#,
+				)
+				.await;
 			});
 
 			assert!(matches!(
