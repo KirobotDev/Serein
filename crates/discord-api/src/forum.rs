@@ -301,7 +301,7 @@ mod tests {
 
 			assert!(matches!(
 				api.forum_posts(Id(2), Id(1), 25).await,
-				Err(Failure::Forbidden)
+				Err(Failure::Protocol)
 			));
 
 			server.await.unwrap();
