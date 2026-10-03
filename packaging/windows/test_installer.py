@@ -119,7 +119,8 @@ def main():
             ready = root / "ready"
             running = subprocess.Popen([str(running_exe), str(ready)])
             wait_for(ready.exists)
-            result = subprocess.run([str(setup), "/S", f"/D={installed}"], timeout=30)
+            # NSIS requires /D= last and unquoted, including paths with spaces.
+            result = subprocess.run(f'"{setup}" /S /D={installed}', timeout=30)
             assert result.returncode == 1, result.returncode
             assert not installed.exists()
             running.terminate()
@@ -127,7 +128,7 @@ def main():
             running = None
             for _ in range(3):
                 start = time.perf_counter()
-                subprocess.run([str(setup), "/S", f"/D={installed}"], check=True, timeout=30)
+                subprocess.run(f'"{setup}" /S /D={installed}', check=True, timeout=30)
                 timings.append(round((time.perf_counter() - start) * 1000, 3))
                 assert (installed / "serein.exe").read_bytes() == (payload / "serein.exe").read_bytes()
                 assert uninstaller.is_file()
